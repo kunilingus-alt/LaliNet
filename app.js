@@ -1,6 +1,6 @@
 // app.js
 
-// Переменные интерфейса (теперь объявлены в самом верху, баг исправлен!)
+// 1. Сначала железно объявляем элементы интерфейса
 const messagesBox = document.getElementById('messagesBox');
 const messageInput = document.getElementById('messageInput');
 const callWindow = document.getElementById('callWindow');
@@ -9,10 +9,10 @@ let currentChatName = "Лалина ✨";
 let currentChatInitials = "ЛА";
 let isMuted = false;
 
-// Подключаемся к стабильному бесплатному глобальному сокету
+// 2. Глобальный бесплатный интернет-сокет (работает без VPN)
 const socket = new WebSocket('wss://://piesocket.com');
 
-// Ловим входящие сообщения от Лалины со всего мира
+// Ловим сообщения от Лалины
 socket.onmessage = function(event) {
     try {
         const data = JSON.parse(event.data);
@@ -23,7 +23,7 @@ socket.onmessage = function(event) {
             createStarExplosion();
         }
     } catch (e) {
-        // Игнорируем системные сообщения сокет-сервера
+        // Игнорируем системный мусор сокет-сервера
     }
 };
 
@@ -36,53 +36,51 @@ function createMessageElement(text, typeClass) {
     messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
-// Отправка сообщений в облако
+// Функция отправки сообщений
 function sendMessage() {
+    if (!messageInput) return;
     const text = messageInput.value.trim();
     if (!text) return;
 
+    // Рисуем у себя
     createMessageElement(text, 'outgoing');
 
-    // Отправляем Лалине через интернет
+    // Отправляем в интернет
     socket.send(JSON.stringify({ type: 'text', text: text }));
 
     messageInput.value = '';
 }
 
-// Слушаем Enter в поле ввода — ИСПРАВЛЕНО
+// ЖЕЛЕЗНЫЙ ОТКЛИК НА ENTER
 messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        e.preventDefault(); // Предотвращаем лишний перенос строки
-        sendMessage();
+        e.preventDefault(); // Запрещаем перенос строки
+        sendMessage();      // Вызываем отправку текста
     }
 });
 
 function sendTelegramStar() {
     createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'outgoing star-donate');
     createStarExplosion();
-
-    // Отправляем сигнал доната Лалине
     socket.send(JSON.stringify({ type: 'star' }));
 }
 
-// Красивый салют из звезд БЕЗ лишних крестиков — ИСПРАВЛЕНО
+// ОЧИЩЕННЫЙ КРАСИВЫЙ САЛЮТ
 function createStarExplosion() {
-    const pCount = 25;
+    const pCount = 15; // Уменьшили количество, чтобы не спамить
     const startX = window.innerWidth / 2;
     const startY = window.innerHeight / 2;
 
     for (let i = 0; i < pCount; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
-        
-        // Оставляем строго звездочки и искры
         particle.textContent = Math.random() > 0.5 ? '⭐' : '✨';
         
         particle.style.left = startX + 'px';
         particle.style.top = startY + 'px';
 
         const angle = Math.random() * Math.PI * 2;
-        const distance = 80 + Math.random() * 180;
+        const distance = 60 + Math.random() * 140;
         const x = Math.cos(angle) * distance;
         const y = Math.sin(angle) * distance;
 
@@ -90,10 +88,15 @@ function createStarExplosion() {
         particle.style.setProperty('--y', `${y}px`);
 
         document.body.appendChild(particle);
-        setTimeout(() => particle.remove(), 1200);
+        
+        // Жесткое удаление частицы из памяти через 1 секунду
+        setTimeout(() => {
+            particle.remove();
+        }, 1000);
     }
 }
 
+// --- УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ ---
 function startCall(type) {
     document.getElementById('callName').textContent = currentChatName;
     document.getElementById('callAvatar').textContent = currentChatInitials;
