@@ -4,11 +4,11 @@
 const pubnub = new PubNub({
     publishKey: 'pub-c-4fa2b415-dc8e-49b8-a764-bd47dfbc9d9b',
     subscribeKey: 'sub-c-ee3f9821-4ea7-42c2-841f-132d73f40f09',
-    userId: "user_" + Math.random().toString(36).substring(2, 9) // Уникальный ID для этой вкладки/телефона
+    userId: "user_" + Math.random().toString(36).substring(2, 9)
 });
 
 let currentChatName = "Лалина ✨";
-let currentChatInitials = "АЛ";
+let currentChatInitials = "ЛА";
 let isMuted = false;
 
 const messagesBox = document.getElementById('messagesBox');
@@ -21,7 +21,6 @@ pubnub.subscribe({ channels: ['lalinet_global_chat'] });
 // Слушаем сообщения со всего мира
 pubnub.addListener({
     message: function(event) {
-        // Если сообщение прислал не ты сам, а кто-то другой (например, Лалина)
         if (event.publisher !== pubnub.getUserId()) {
             if (event.message.type === 'text') {
                 createMessageElement(event.message.text, 'incoming');
@@ -48,7 +47,6 @@ function sendMessage() {
 
     createMessageElement(text, 'outgoing');
 
-    // Публикуем в интернет-канал
     pubnub.publish({
         channel: 'lalinet_global_chat',
         message: { type: 'text', text: text }
@@ -57,6 +55,7 @@ function sendMessage() {
     messageInput.value = '';
 }
 
+// Слушаем Enter в поле ввода
 messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
@@ -97,17 +96,37 @@ function createStarExplosion() {
     }
 }
 
+// --- ИСПРАВЛЕННЫЕ КНОПКИ ЗВЕНЬЕВ И ЧАТОВ ---
+function switchChat(name, initials) {
+    currentChatName = name;
+    currentChatInitials = initials;
+    document.getElementById('active-chat-name').textContent = name;
+    
+    document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+    if (window.event && window.event.currentTarget) {
+        window.event.currentTarget.classList.add('active');
+    }
+}
+
 function startCall(type) {
     document.getElementById('callName').textContent = currentChatName;
+    document.getElementById('callAvatar').textContent = currentChatInitials;
     document.getElementById('callStatus').textContent = type === 'video' ? 'Видеовызов...' : 'Аудиовызов...';
     callWindow.classList.add('active');
 }
 
-function endCall() { callWindow.classList.remove('active'); }
+function endCall() { 
+    callWindow.classList.remove('active'); 
+}
 
 function toggleMute() {
     isMuted = !isMuted;
     const muteBtn = document.getElementById('muteBtn');
-    if (isMuted) { muteBtn.classList.add('muted'); muteBtn.textContent = "🔇"; }
-    else { muteBtn.classList.remove('muted'); muteBtn.textContent = "🎙️"; }
+    if (isMuted) { 
+        muteBtn.classList.add('muted'); 
+        muteBtn.textContent = "🔇"; 
+    } else { 
+        muteBtn.classList.remove('muted'); 
+        muteBtn.textContent = "🎙️"; 
+    }
 }
