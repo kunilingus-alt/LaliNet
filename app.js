@@ -49,9 +49,12 @@ function sendMessage() {
     messageInput.value = '';
 }
 
-// Слушаем Enter в поле ввода
+// Слушаем Enter в поле ввода — ИСПРАВЛЕНО
 messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === 'Enter') {
+        e.preventDefault(); // Предотвращаем лишний перенос строки
+        sendMessage();
+    }
 });
 
 function sendTelegramStar() {
@@ -62,6 +65,7 @@ function sendTelegramStar() {
     socket.send(JSON.stringify({ type: 'star' }));
 }
 
+// Красивый салют из звезд БЕЗ лишних крестиков — ИСПРАВЛЕНО
 function createStarExplosion() {
     const pCount = 25;
     const startX = window.innerWidth / 2;
@@ -70,6 +74,8 @@ function createStarExplosion() {
     for (let i = 0; i < pCount; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
+        
+        // Оставляем строго звездочки и искры
         particle.textContent = Math.random() > 0.5 ? '⭐' : '✨';
         
         particle.style.left = startX + 'px';
