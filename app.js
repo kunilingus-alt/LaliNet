@@ -1,38 +1,34 @@
 // app.js
 
-// Глобальные бесплатные ключи для теста облачного чата LaliNet
-const pubnub = new PubNub({
-    publishKey: 'pub-c-4fa2b415-dc8e-49b8-a764-bd47dfbc9d9b',
-    subscribeKey: 'sub-c-ee3f9821-4ea7-42c2-841f-132d73f40f09',
-    userId: "user_" + Math.random().toString(36).substring(2, 9)
-});
+// Переменные интерфейса (теперь объявлены в самом верху, баг исправлен!)
+const messagesBox = document.getElementById('messagesBox');
+const messageInput = document.getElementById('messageInput');
+const callWindow = document.getElementById('callWindow');
 
 let currentChatName = "Лалина ✨";
 let currentChatInitials = "ЛА";
 let isMuted = false;
 
-const messagesBox = document.getElementById('messagesBox');
-const messageInput = document.getElementById('messageInput');
-const callWindow = document.getElementById('callWindow');
+// Подключаемся к стабильному бесплатному глобальному сокету
+const socket = new WebSocket('wss://://piesocket.com');
 
-// Подписываемся на секретный интернет-канал LaliNet
-pubnub.subscribe({ channels: ['lalinet_global_chat'] });
-
-// Слушаем сообщения со всего мира
-pubnub.addListener({
-    message: function(event) {
-        if (event.publisher !== pubnub.getUserId()) {
-            if (event.message.type === 'text') {
-                createMessageElement(event.message.text, 'incoming');
-            } else if (event.message.type === 'star') {
-                createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'incoming star-donate');
-                createStarExplosion();
-            }
+// Ловим входящие сообщения от Лалины со всего мира
+socket.onmessage = function(event) {
+    try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'text') {
+            createMessageElement(data.text, 'incoming');
+        } else if (data.type === 'star') {
+            createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'incoming star-donate');
+            createStarExplosion();
         }
+    } catch (e) {
+        // Игнорируем системные сообщения сокет-сервера
     }
-});
+};
 
 function createMessageElement(text, typeClass) {
+    if (!messagesBox) return;
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${typeClass}`;
     msgDiv.textContent = text;
@@ -47,10 +43,8 @@ function sendMessage() {
 
     createMessageElement(text, 'outgoing');
 
-    pubnub.publish({
-        channel: 'lalinet_global_chat',
-        message: { type: 'text', text: text }
-    });
+    // Отправляем Лалине через интернет
+    socket.send(JSON.stringify({ type: 'text', text: text }));
 
     messageInput.value = '';
 }
@@ -64,10 +58,8 @@ function sendTelegramStar() {
     createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'outgoing star-donate');
     createStarExplosion();
 
-    pubnub.publish({
-        channel: 'lalinet_global_chat',
-        message: { type: 'star' }
-    });
+    // Отправляем сигнал доната Лалине
+    socket.send(JSON.stringify({ type: 'star' }));
 }
 
 function createStarExplosion() {
@@ -93,18 +85,6 @@ function createStarExplosion() {
 
         document.body.appendChild(particle);
         setTimeout(() => particle.remove(), 1200);
-    }
-}
-
-// --- ИСПРАВЛЕННЫЕ КНОПКИ ЗВЕНЬЕВ И ЧАТОВ ---
-function switchChat(name, initials) {
-    currentChatName = name;
-    currentChatInitials = initials;
-    document.getElementById('active-chat-name').textContent = name;
-    
-    document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
-    if (window.event && window.event.currentTarget) {
-        window.event.currentTarget.classList.add('active');
     }
 }
 
