@@ -1,6 +1,5 @@
 // app.js
 
-// 1. Сначала железно объявляем элементы интерфейса
 const messagesBox = document.getElementById('messagesBox');
 const messageInput = document.getElementById('messageInput');
 const callWindow = document.getElementById('callWindow');
@@ -8,24 +7,80 @@ const callWindow = document.getElementById('callWindow');
 let currentChatName = "Лалина ✨";
 let currentChatInitials = "ЛА";
 let isMuted = false;
+let lastMessageTime = 0;
 
-// 2. Глобальный бесплатный интернет-сокет (работает без VPN)
-const socket = new WebSocket('wss://://piesocket.com');
+// Уникальный ключ для вашей комнаты с Лалиной (можно изменить на любой секретный набор букв)
+const chatRoomKey = "lalinet_secret_room_2026";
+const cloudUrl = `https://keyvalue.xyz{chatRoomKey}/chat`;
 
-// Ловим сообщения от Лалины
-socket.onmessage = function(event) {
+// --- ЛОГИКА ОТПРАВКИ В ОБЛАКО ---
+async function sendMessage() {
+    if (!messageInput) return;
+    const text = messageInput.value.trim();
+    if (!text) return;
+
+    createMessageElement(text, 'outgoing');
+    messageInput.value = '';
+
+    const payload = {
+        type: 'text',
+        text: text,
+        time: Date.now()
+    };
+
+    // Сохраняем сообщение в глобальный интернет
     try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'text') {
-            createMessageElement(data.text, 'incoming');
-        } else if (data.type === 'star') {
-            createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'incoming star-donate');
-            createStarExplosion();
+        await fetch(cloudUrl, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        lastMessageTime = payload.time;
+    } catch (e) {
+        console.log("Ошибка отправки в облако");
+    }
+}
+
+async function sendTelegramStar() {
+    createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'outgoing star-donate');
+    createStarExplosion();
+
+    const payload = {
+        type: 'star',
+        time: Date.now()
+    };
+
+    try {
+        await fetch(cloudUrl, { method: 'POST', body: JSON.stringify(payload) });
+        lastMessageTime = payload.time;
+    } catch (e) {}
+}
+
+// --- АВТОМАТИЧЕСКАЯ ПРОВЕРКА ДЛЯ ИНТЕРНЕТА ---
+async function checkNewMessages() {
+    try {
+        const response = await fetch(cloudUrl);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        // Если появилось новое сообщение от собеседника
+        if (data && data.time > lastMessageTime) {
+            lastMessageTime = data.time;
+            
+            if (data.type === 'text') {
+                createMessageElement(data.text, 'incoming');
+            } else if (data.type === 'star') {
+                createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'incoming star-donate');
+                createStarExplosion();
+            }
         }
     } catch (e) {
-        // Игнорируем системный мусор сокет-сервера
+        // База данных пустая при первом запуске, это нормально
     }
-};
+}
+
+// Каждую секунду проверяем, не написала ли Лалина с другого конца города
+setInterval(checkNewMessages, 1500);
 
 function createMessageElement(text, typeClass) {
     if (!messagesBox) return;
@@ -36,38 +91,17 @@ function createMessageElement(text, typeClass) {
     messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
-// Функция отправки сообщений
-function sendMessage() {
-    if (!messageInput) return;
-    const text = messageInput.value.trim();
-    if (!text) return;
-
-    // Рисуем у себя
-    createMessageElement(text, 'outgoing');
-
-    // Отправляем в интернет
-    socket.send(JSON.stringify({ type: 'text', text: text }));
-
-    messageInput.value = '';
-}
-
-// ЖЕЛЕЗНЫЙ ОТКЛИК НА ENTER
+// Слушаем Enter
 messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        e.preventDefault(); // Запрещаем перенос строки
-        sendMessage();      // Вызываем отправку текста
+        e.preventDefault();
+        sendMessage();
     }
 });
 
-function sendTelegramStar() {
-    createMessageElement(`🌟 Отправлено 50 Telegram Stars!`, 'outgoing star-donate');
-    createStarExplosion();
-    socket.send(JSON.stringify({ type: 'star' }));
-}
-
-// ОЧИЩЕННЫЙ КРАСИВЫЙ САЛЮТ
+// Эффект салюта (15 звездочек, удаляются без накопления)
 function createStarExplosion() {
-    const pCount = 15; // Уменьшили количество, чтобы не спамить
+    const pCount = 15;
     const startX = window.innerWidth / 2;
     const startY = window.innerHeight / 2;
 
@@ -88,34 +122,23 @@ function createStarExplosion() {
         particle.style.setProperty('--y', `${y}px`);
 
         document.body.appendChild(particle);
-        
-        // Жесткое удаление частицы из памяти через 1 секунду
-        setTimeout(() => {
-            particle.remove();
-        }, 1000);
+        setTimeout(() => { particle.remove(); }, 1000);
     }
 }
 
 // --- УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ ---
 function startCall(type) {
     document.getElementById('callName').textContent = currentChatName;
-    document.getElementById('callAvatar').textContent = currentChatInitials;
     document.getElementById('callStatus').textContent = type === 'video' ? 'Видеовызов...' : 'Аудиовызов...';
     callWindow.classList.add('active');
 }
 
-function endCall() { 
-    callWindow.classList.remove('active'); 
-}
+function endCall() { callWindow.classList.remove('active'); }
 
 function toggleMute() {
     isMuted = !isMuted;
     const muteBtn = document.getElementById('muteBtn');
-    if (isMuted) { 
-        muteBtn.classList.add('muted'); 
-        muteBtn.textContent = "🔇"; 
-    } else { 
-        muteBtn.classList.remove('muted'); 
-        muteBtn.textContent = "🎙️"; 
-    }
+    if (isMuted) { muteBtn.classList.add('muted'); muteBtn.textContent = "🔇"; }
+    else { muteBtn.classList.remove('muted'); muteBtn.textContent = "🎙️"; }
 }
+
